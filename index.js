@@ -1,37 +1,49 @@
 
-const fetch = require('node-fetch');
+const express = require('express');
+const axios = require('axios');
+const app = express();
 
-// Vérifie que les variables d'environnement sont présentes
-const API_TOKEN = process.env.CLICKUP_API_TOKEN;
-const SPACE_URL = process.env.CLICKUP_SPACE_URL;
+app.use(express.json());
 
-if (!API_TOKEN) {
-    console.error("Error: Missing API token");
-    process.exit(1); // Arrête le processus si l'API token n'est pas défini.
-}
+const CLICKUP_API_TOKEN = process.env.CLICKUP_API_TOKEN;
+const PORT = process.env.PORT || 3000;
 
-async function startTimer() {
-    try {
-        const taskId = "YOUR_TASK_ID";  // Remplace par ton ID de tâche ClickUp
+app.post('/webhook', async (req, res) => {
+  try {
+    const event = req.body;
 
-        const response = await fetch(`https://api.clickup.com/api/v2/task/${taskId}/time`, {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${API_TOKEN}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({})
-        });
+    // Vérifie qu'on reçoit un changement de statut
+    if (
+      event?.event === 'taskStatusUpdated' &&
+      event?.task?.status?.status === 'IN PROGRESS'
+    ) {
+      const taskId = event.task.id;
 
-        if (!response.ok) {
-            throw new Error(`API Error: ${response.statusText}`);
+      await axios.post(
+        `https://api.clickup.com/api/v2/task/${taskId}/time`,
+        {},
+        {
+          headers: {
+            Authorization: CLICKUP_API_TOKEN,
+            'Content-Type': 'application/json'
+          }
         }
+      );
 
-        const data = await response.json();
-        console.log("Timer started:", data);
-    } catch (error) {
-        console.error("Error starting timer:", error);
+      console.log(`✅ Timer started for task ${taskId}`);
     }
-}
 
-startTimer();
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('❌ Failed to process webhook:', error.message);
+    res.status(500).send('Error');
+  }
+});
+
+app.get('/', (req, res) => {
+  res.send('✅ ClickUp auto-timer webhook is running.');
+});
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server listening on port ${PORT}`);
+});
