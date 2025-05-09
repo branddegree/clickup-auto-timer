@@ -1,38 +1,27 @@
 
-const express = require('express');
-const axios = require('axios');
-const app = express();
-app.use(express.json());
+const fetch = require('node-fetch');
 
-const TOKEN = process.env.API_TOKEN;
+const API_TOKEN = process.env.CLICKUP_API_TOKEN;
+const SPACE_URL = process.env.CLICKUP_SPACE_URL;
 
-app.post('/webhook', async (req, res) => {
-  try {
-    const event = req.body;
+async function startTimer() {
+    try {
+        const taskId = "YOUR_TASK_ID";  // Replace with your ClickUp Task ID
 
-    if (
-      event?.event === 'taskStatusUpdated' &&
-      event?.task?.status?.status === 'IN PROGRESS'
-    ) {
-      const taskId = event.task.id;
-      await axios.post(
-        `https://api.clickup.com/api/v2/task/${taskId}/time`,
-        {},
-        {
-          headers: { Authorization: TOKEN }
-        }
-      );
-      console.log(`Timer started for task ${taskId}`);
+        const response = await fetch(`https://api.clickup.com/api/v2/task/${taskId}/time`, {
+            method: "POST",
+            headers: {
+                "Authorization": API_TOKEN,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({})
+        });
+
+        const data = await response.json();
+        console.log("Timer started:", data);
+    } catch (error) {
+        console.error("Error starting timer:", error);
     }
+}
 
-    res.status(200).send('OK');
-  } catch (error) {
-    console.error('Error:', error.response?.data || error.message);
-    res.status(500).send('Error');
-  }
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Listening on port ${PORT}`);
-});
+startTimer();
